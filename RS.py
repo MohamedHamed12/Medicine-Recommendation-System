@@ -17,11 +17,6 @@ import sklearn
 
 # importing data
 df = pd.read_csv('Datasets/Training.csv')
-# print(df.head(5))
-# print(df.shape)
-# print(df.columns)
-# print(df.info())
-# print(len(df.prognosis.unique()), df.prognosis.unique())
 
 # Train Test Split
 X = df.drop('prognosis', axis=1)
@@ -31,11 +26,10 @@ le = LabelEncoder()
 le.fit(y)
 Y = le.transform(y)
 X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.3, random_state=20)
-print(X_train.shape, y_train.shape, X_test.shape, y_test.shape)
 
 # train model
 models = {
-    # 'Svc': SVC(kernel="linear"),
+    'Svc': SVC(kernel="linear"),
     'RandomForest': RandomForestClassifier(n_estimators=100, random_state=42),
     'GradienBoosting': GradientBoostingClassifier(n_estimators=100, random_state=42),
     'KNeighbors': KNeighborsClassifier(n_neighbors=5),
@@ -44,10 +38,10 @@ models = {
 
 for model_name, model in models.items():
     # train model
-    model.fit(X_train, y_train)
+    model.fit(X_train.values, y_train)
 
     # test model
-    predictions = model.predict(X_test)
+    predictions = model.predict(X_test.values)
 
     # calculate accuracy
     accuracy = accuracy_score(y_test, predictions)
@@ -55,30 +49,16 @@ for model_name, model in models.items():
     # calculate confusion matrix
     cm = confusion_matrix(y_test, predictions)
 
-    print(f"{model_name} accuracy: {accuracy}")
-    # print(f"{model_name} confusion matrix: ")
-    # print(np.array2string(cm, separator=" , "))
-    print("\n")
-
 # Single Prediction
 svc = SVC(kernel="linear")
-svc.fit(X_train, y_train)
-ypred = svc.predict(X_test)
-print(accuracy_score(y_test, ypred))
+svc.fit(X_train.values, y_train)
+ypred = svc.predict(X_test.values)
 
 # saving model
 pickle.dump(svc, open("svc.pkl", 'wb'))
 
 # load model
 svc = pickle.load(open("svc.pkl", 'rb'))
-
-# test 1
-print("predict Label: ", svc.predict(X_test.iloc[0].values.reshape(1, -1)))
-print("Actual Label: ", y_test[0])
-
-# test 2
-print("predict Label: ", svc.predict(X_test.iloc[20].values.reshape(1, -1)))
-print("Actual Label: ", y_test[20])
 
 # Recommendation System & Prediction
 sym_des = pd.read_csv('Datasets/symtoms_df.csv')
@@ -156,50 +136,40 @@ diseases_list = {15: 'Fungal infection', 4: 'Allergy', 16: 'GERD', 9: 'Chronic c
 
 # Model Prediction function
 def get_predicted_value(patient_symptoms):
+    # added recently
+    symptoms = [s.strip() for s in patient_symptoms.split(",")]
+    symptoms = [sym.strip("[]' ") for sym in symptoms]
+
     input_vector = np.zeros(len(symptoms_dict))
 
-    for item in patient_symptoms:
+    for item in symptoms:
         input_vector[symptoms_dict[item]] = 1
     return diseases_list[svc.predict([input_vector])[0]]
 
 
 # test 1
 symptoms = input('Enter your symptoms........')
-user_symptoms = [s.strip() for s in symptoms.split(",")]
-user_symptoms = [sym.strip("[]' ") for sym in user_symptoms]
-predited_disease = get_predicted_value(user_symptoms)
+predicted_disease = get_predicted_value(symptoms)
 
 ### get all information about the predicted disease
-description, precaution, medication, diet, wrkout = get_all_information(predited_disease)
-print("*******************  Predicted Disease ***************************")
-print(predited_disease)
-print("                                                               ")
+description, precaution, medication, diet, wrkout = get_all_information(predicted_disease)
+# print("*******************  Predicted Disease ***************************")
+print(predicted_disease)
+print("\n")
 
-print("******************   Description  **********************************")
-print(description)
-print("                                                               ")
-
-print("******************   Precautions  **********************************")
-i = 1
-for p_i in precaution[0]:
-    print(i, ": ", p_i)
-    i += 1
-
-print("                                                               ")
-
-print("******************   Medications  **********************************")
-for i in medication: print(i, sep=', ')
-print(*medication)
-print("                                                               ")
-
-print("******************   Diets  **********************************")
-print(*diet)
-print("                                                               ")
-
-print("******************   Workout  **********************************")
-i = 1
-for p_i in wrkout:
-    print(i, ": ", p_i)
-    i += 1
-
-print(sklearn.__version__)
+# print("******************   Medications  **********************************")
+med = []
+f = 0
+word = ""
+for j in medication:
+    for i in j:
+        if i == "'" and not f:
+            word += i
+            f = 1
+        elif i != "'" and f:
+            word += i
+        elif i == "'" and f:
+            med.append(word[1:])
+            word = ""
+            f = 0
+print(*med, sep='\n')

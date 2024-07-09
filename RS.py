@@ -1,61 +1,59 @@
+import pickle
 import pandas as pd
+import numpy as np
 
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
-
-from sklearn.datasets import make_classification
 from sklearn.svm import SVC
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.metrics import accuracy_score, confusion_matrix
-import numpy as np
 
-import pickle
 
-import sklearn
+def train_model():
+    # importing data
+    df = pd.read_csv('Datasets/Training.csv')
 
-# importing data
-df = pd.read_csv('Datasets/Training.csv')
+    # Train Test Split
+    X = df.drop('prognosis', axis=1)
+    y = df['prognosis']
 
-# Train Test Split
-X = df.drop('prognosis', axis=1)
-y = df['prognosis']
+    le = LabelEncoder()
+    le.fit(y)
+    Y = le.transform(y)
+    X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.3, random_state=20)
 
-le = LabelEncoder()
-le.fit(y)
-Y = le.transform(y)
-X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.3, random_state=20)
-
-# train model
-models = {
-    'Svc': SVC(kernel="linear"),
-    'RandomForest': RandomForestClassifier(n_estimators=100, random_state=42),
-    'GradienBoosting': GradientBoostingClassifier(n_estimators=100, random_state=42),
-    'KNeighbors': KNeighborsClassifier(n_neighbors=5),
-    'multinomial': MultinomialNB()
-}
-
-for model_name, model in models.items():
     # train model
-    model.fit(X_train.values, y_train)
+    models = {
+        'Svc': SVC(kernel="linear"),
+        'RandomForest': RandomForestClassifier(n_estimators=100, random_state=42),
+        'GradienBoosting': GradientBoostingClassifier(n_estimators=100, random_state=42),
+        'KNeighbors': KNeighborsClassifier(n_neighbors=5),
+        'multinomial': MultinomialNB()
+    }
 
-    # test model
-    predictions = model.predict(X_test.values)
+    for model_name, model in models.items():
+        # train model
+        model.fit(X_train.values, y_train)
 
-    # calculate accuracy
-    accuracy = accuracy_score(y_test, predictions)
+        # test model
+        predictions = model.predict(X_test.values)
 
-    # calculate confusion matrix
-    cm = confusion_matrix(y_test, predictions)
+        # calculate accuracy
+        accuracy = accuracy_score(y_test, predictions)
 
-# Single Prediction
-svc = SVC(kernel="linear")
-svc.fit(X_train.values, y_train)
-ypred = svc.predict(X_test.values)
+        # calculate confusion matrix
+        cm = confusion_matrix(y_test, predictions)
 
-# saving model
-pickle.dump(svc, open("svc.pkl", 'wb'))
+    # Single Prediction
+    svc = SVC(kernel="linear")
+    svc.fit(X_train.values, y_train)
+    ypred = svc.predict(X_test.values)
+
+    # saving model
+    pickle.dump(svc, open("svc.pkl", 'wb'))
+
 
 # load model
 svc = pickle.load(open("svc.pkl", 'rb'))
@@ -68,25 +66,24 @@ description = pd.read_csv('Datasets/description.csv')
 medications = pd.read_csv('Datasets/medications.csv ')
 diets = pd.read_csv('Datasets/Diets.csv')
 
-
 def get_all_information(disease):
     descrb = description[description['Disease'] == disease]['Description']
     descrb = " ".join([w for w in descrb])
 
     pre = precautions[precautions['Disease'] == disease][
         ['Precaution_1', 'Precaution_2', 'Precaution_3', 'Precaution_4']]
-    pre = [col for col in pre.values]
+    pre = [col.tolist() for col in pre.values]
 
     med = medications[medications['Disease'] == disease]['Medication']
-    med = [col for col in med.values]
+    med = [col for col in med.tolist()]
 
     diet = diets[diets['Disease'] == disease]['Diet']
-    diet = [die for die in diet.values]
+    diet = [die for die in diet.tolist()]
 
     wok = workout[workout['disease'] == disease]['workout']
-    wok = [col for col in wok.values]
+    wok = [col for col in wok.tolist()]
+    
     return descrb, pre, med, diet, wok
-
 
 symptoms_dict = {'itching': 0, 'skin_rash': 1, 'nodal_skin_eruptions': 2, 'continuous_sneezing': 3, 'shivering': 4,
                  'chills': 5, 'joint_pain': 6, 'stomach_pain': 7, 'acidity': 8, 'ulcers_on_tongue': 9,
@@ -135,9 +132,9 @@ diseases_list = {15: 'Fungal infection', 4: 'Allergy', 16: 'GERD', 9: 'Chronic c
 
 
 # Model Prediction function
-def get_predicted_value(patient_symptoms):
+def get_predicted_value(patient_symptoms: list[str]):
     # added recently
-    symptoms = [s.strip() for s in patient_symptoms.split(",")]
+    symptoms = [s.strip() for s in patient_symptoms]
     symptoms = [sym.strip("[]' ") for sym in symptoms]
 
     input_vector = np.zeros(len(symptoms_dict))
@@ -147,29 +144,23 @@ def get_predicted_value(patient_symptoms):
     return diseases_list[svc.predict([input_vector])[0]]
 
 
-# test 1
-symptoms = input('Enter your symptoms........')
-predicted_disease = get_predicted_value(symptoms)
+# # print("*******************  Predicted Disease ***************************")
+# print(predicted_disease)
+# print("\n")
 
-### get all information about the predicted disease
-description, precaution, medication, diet, wrkout = get_all_information(predicted_disease)
-# print("*******************  Predicted Disease ***************************")
-print(predicted_disease)
-print("\n")
-
-# print("******************   Medications  **********************************")
-med = []
-f = 0
-word = ""
-for j in medication:
-    for i in j:
-        if i == "'" and not f:
-            word += i
-            f = 1
-        elif i != "'" and f:
-            word += i
-        elif i == "'" and f:
-            med.append(word[1:])
-            word = ""
-            f = 0
-print(*med, sep='\n')
+# # print("******************   Medications  **********************************")
+# med = []
+# f = 0
+# word = ""
+# for j in medication:
+#     for i in j:
+#         if i == "'" and not f:
+#             word += i
+#             f = 1
+#         elif i != "'" and f:
+#             word += i
+#         elif i == "'" and f:
+#             med.append(word[1:])
+#             word = ""
+#             f = 0
+# print(*med, sep='\n')
